@@ -765,7 +765,7 @@ class FastMCP:
             debug=self.settings.debug, routes=routes, middleware=middleware
         )
 
-    def streamable_http_app(self):
+    def streamable_http_app(self) -> Starlette:
         """Return an instance of the StreamableHTTP server app."""
         from starlette.middleware import Middleware
         from starlette.routing import Mount, Router
@@ -788,7 +788,14 @@ class FastMCP:
         # Normalize the main path (no trailing slash)
         _main_path = self.settings.streamable_http_path.removesuffix("/")
 
-        routes: list[Route | Mount | Router] = []
+        streamable_router = Router(
+            routes=[
+                Route("/", endpoint=handle_streamable_http, methods=["GET", "POST"]),
+            ],
+            redirect_slashes=False,
+        )
+
+        routes: list[Route | Mount ] = []
         middleware: list[Middleware] = []
         required_scopes = []
 
@@ -817,34 +824,22 @@ class FastMCP:
                     revocation_options=self.settings.auth.revocation_options,
                 )
             )
-
-            routes.extend(
-                [
-                    Router(
-                        routes=[
-                            Route(
-                                _main_path,
-                                endpoint=RequireAuthMiddleware(
-                                    handle_streamable_http, required_scopes
-                                ),
-                            )],
-                        redirect_slashes=False,
-                    )
-                ]
+            
+            routes.append(
+                Mount(
+                    _main_path,
+                    app=RequireAuthMiddleware(
+                        streamable_router, required_scopes
+                    ),
+                )
             )
         else:
             # Auth is disabled, no wrapper needed
-            routes.extend(
-                [
-                    Router(
-                        routes=[
-                            Route(
-                                _main_path,
-                                endpoint=handle_streamable_http,
-                            )],
-                        redirect_slashes=False,
-                    )
-                ]
+            routes.append(
+                Mount(
+                    _main_path,
+                    app=streamable_router,
+                )
             )
 
         routes.extend(self._custom_starlette_routes)
