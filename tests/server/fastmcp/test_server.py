@@ -127,16 +127,20 @@ class TestServer:
         mcp = FastMCP()
         app = mcp.streamable_http_app()
 
+       # Print the app routes for debugging
+        print("App routes:", app.routes)
+
         # Find routes by type
-        streamable_routes = [r for r in app.routes if isinstance(r, Route)]
         mount_routes = [r for r in app.routes if isinstance(r, Mount)]
+        streamable_routes = [r for r in app.routes if isinstance(r, Route)]
 
         # Verify routes exist
-        assert len(streamable_routes) == 2, "Should have two streamable routes"
+        assert len(mount_routes) == 2, "Should have two streamable routes"
+        assert len(streamable_routes) == 0, "Should have no streamable routes"
 
         # Verify path values
-        assert streamable_routes[0].path == "/mcp", "Streamable route path should be /mcp"
-        assert streamable_routes[1].path == "/mcp/", "Streamable route path should be /mcp"
+        assert mount_routes[0].path == "/mcp", "Streamable route path should be /mcp"
+        assert mount_routes[1].path == "/mcp/", "Streamable route path should be /mcp/"
 
 
 

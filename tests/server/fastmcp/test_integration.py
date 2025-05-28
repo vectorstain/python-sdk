@@ -441,23 +441,24 @@ async def test_fastmcp_streamable_http(
 ) -> None:
     """Test that FastMCP works with StreamableHTTP transport."""
     # Connect to the server using StreamableHTTP
-    async with streamablehttp_client(http_server_url + "/mcp") as (
-        read_stream,
-        write_stream,
-        _,
-    ):
-        # Create a session using the client streams
-        async with ClientSession(read_stream, write_stream) as session:
-            # Test initialization
-            result = await session.initialize()
-            assert isinstance(result, InitializeResult)
-            assert result.serverInfo.name == "NoAuthServer"
+    for path in ["/mcp", "/mcp/"]:
+        async with streamablehttp_client(http_server_url + path) as (
+            read_stream,
+            write_stream,
+            _,
+        ):
+            # Create a session using the client streams
+            async with ClientSession(read_stream, write_stream) as session:
+                # Test initialization
+                result = await session.initialize()
+                assert isinstance(result, InitializeResult)
+                assert result.serverInfo.name == "NoAuthServer"
 
-            # Test that we can call tools without authentication
-            tool_result = await session.call_tool("echo", {"message": "hello"})
-            assert len(tool_result.content) == 1
-            assert isinstance(tool_result.content[0], TextContent)
-            assert tool_result.content[0].text == "Echo: hello"
+                # Test that we can call tools without authentication
+                tool_result = await session.call_tool("echo", {"message": "hello"})
+                assert len(tool_result.content) == 1
+                assert isinstance(tool_result.content[0], TextContent)
+                assert tool_result.content[0].text == "Echo: hello"
 
 
 @pytest.mark.anyio

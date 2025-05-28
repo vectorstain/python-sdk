@@ -765,10 +765,10 @@ class FastMCP:
             debug=self.settings.debug, routes=routes, middleware=middleware
         )
 
-    def streamable_http_app(self) -> Starlette:
+    def streamable_http_app(self):
         """Return an instance of the StreamableHTTP server app."""
         from starlette.middleware import Middleware
-        from starlette.routing import Mount
+        from starlette.routing import Mount, Router
 
         # Create session manager on first call (lazy initialization)
         if self._session_manager is None:
@@ -785,18 +785,14 @@ class FastMCP:
         ) -> None:
             await self.session_manager.handle_request(scope, receive, send)
 
-        # Create routes
-        routes: list[Route | Mount] = []
+        # Normalize the main path (no trailing slash)
+        _main_path = self.settings.streamable_http_path.removesuffix("/")
+
+        routes: list[Route | Mount | Router] = []
         middleware: list[Middleware] = []
         required_scopes = []
 
-        # Always mount both /mcp and /mcp/ for full compatibility, regardless of default
-        # Verify that _main_path has root format -> /mcp
-        _main_path = self.settings.streamable_http_path.removesuffix("/")
-        # Format _alt_path so it ends with '/' -> /mcp/
-        _alt_path  = _main_path + "/"
-
-        # Add auth endpoints if auth provider is configured
+        # Auth endpoints if auth provider is configured
         if self._auth_server_provider:
             assert self.settings.auth
             from mcp.server.auth.routes import create_auth_routes
@@ -821,27 +817,34 @@ class FastMCP:
                     revocation_options=self.settings.auth.revocation_options,
                 )
             )
-            routes.extend([
-                Mount(
-                    _main_path,
-                    app=RequireAuthMiddleware(handle_streamable_http, required_scopes),
-                ),
-                Mount(
-                    _alt_path,
-                    app=RequireAuthMiddleware(handle_streamable_http, required_scopes),
-                )]
+
+            routes.extend(
+                [
+                    Router(
+                        routes=[
+                            Route(
+                                _main_path,
+                                endpoint=RequireAuthMiddleware(
+                                    handle_streamable_http, required_scopes
+                                ),
+                            )],
+                        redirect_slashes=False,
+                    )
+                ]
             )
         else:
             # Auth is disabled, no wrapper needed
-            routes.extend([
-                Mount(
-                    _main_path,
-                    app=handle_streamable_http,
-                ),
-                Mount(
-                    _alt_path,
-                    app=handle_streamable_http,
-                )]
+            routes.extend(
+                [
+                    Router(
+                        routes=[
+                            Route(
+                                _main_path,
+                                endpoint=handle_streamable_http,
+                            )],
+                        redirect_slashes=False,
+                    )
+                ]
             )
 
         routes.extend(self._custom_starlette_routes)
