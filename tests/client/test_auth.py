@@ -352,8 +352,10 @@ class TestOAuthClientProvider:
         """Test token validation with no token."""
         assert not oauth_provider._has_valid_token()
 
-    def test_has_valid_token_valid(self, oauth_provider, oauth_token):
+    @pytest.mark.anyio
+    async def test_has_valid_token_valid(self, oauth_provider, oauth_token):
         """Test token validation with valid token."""
+        oauth_provider = await oauth_provider
         oauth_provider._current_tokens = oauth_token
         oauth_provider._token_expiry_time = time.time() + 3600  # Future expiry
 
