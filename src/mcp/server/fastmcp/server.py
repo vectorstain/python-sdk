@@ -790,7 +790,7 @@ class FastMCP:
 
         streamable_router = Router(
             routes=[
-                Route("/", endpoint=handle_streamable_http, methods=["GET", "POST"]),
+                Route("", endpoint=handle_streamable_http, methods=["GET", "POST"]),
             ],
             redirect_slashes=False,
         )
